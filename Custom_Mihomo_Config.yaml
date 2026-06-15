@@ -1,0 +1,626 @@
+# ========================================
+# 📱 定制化 Mihomo 通用进阶配置
+# ========================================
+# 作者: Custom Config
+# 版本: v1.0
+# 更新时间: 2026-06-15
+# 适用场景: 个人电脑/手机客户端
+# 核心功能: 流媒体解锁 | 广告拦截 | AI服务分流 | TUN模式 | 自动测速
+# ========================================
+
+# ==================== 锚点配置 ====================
+# 代理提供者模板
+BaseProvider: &BaseProvider
+  type: http
+  interval: 86400
+  proxy: DIRECT
+  health-check:
+    enable: true
+    url: https://www.google.com/generate_204
+    interval: 300
+  filter: '^(?!.*(过期|剩余|到期|官网|关注|群|频道|订阅|流量|Traffic|Expire|Panel|QQ|客服))'
+
+# 节点筛选正则表达式
+FilterHK: &FilterHK '^(?=.*(?i)(🇭🇰|香港|港|HK|Hong))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterTW: &FilterTW '^(?=.*(?i)(🇹🇼|台湾|台|TW|Taiwan))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterSG: &FilterSG '^(?=.*(?i)(🇸🇬|新加坡|坡|狮城|SG|Singapore))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterJP: &FilterJP '^(?=.*(?i)(🇯🇵|日本|日|JP|Japan))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterKR: &FilterKR '^(?=.*(?i)(🇰🇷|韩国|韩|KR|Korea))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterUS: &FilterUS '^(?=.*(?i)(🇺🇸|美国|美|US|United States|America))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterUK: &FilterUK '^(?=.*(?i)(🇬🇧|英国|英|UK|Britain|United Kingdom))(?!.*(回国|校园|游戏|(?i)GAME)).*$'
+FilterEU: &FilterEU '^(?=.*(?i)(🇩🇪|🇫🇷|🇳🇱|🇮🇹|🇪🇸|德国|法国|荷兰|意大利|西班牙|欧洲|EU|Europe)).*$'
+
+# 策略组类型模板
+UrlTest: &UrlTest
+  type: url-test
+  url: https://www.google.com/generate_204
+  interval: 300
+  tolerance: 50
+  lazy: true
+
+Fallback: &Fallback
+  type: fallback
+  url: https://www.google.com/generate_204
+  interval: 300
+  lazy: true
+
+LoadBalance: &LoadBalance
+  type: load-balance
+  strategy: consistent-hashing
+  url: https://www.google.com/generate_204
+  interval: 300
+  lazy: true
+
+# 规则提供者模板 - 基础配置
+RuleProviderClassical: &RuleProviderClassical
+  type: http
+  behavior: classical
+  interval: 86400
+
+# ==================== 代理提供者 ====================
+# 请在此处填入你的机场订阅链接
+proxy-providers:
+  Subscribe1:
+    <<: *BaseProvider
+    url: "http://your-service-provider-url"  # 请替换为你的订阅链接
+    # override:
+    #   additional-prefix: "[机场1] "  # 可选：为节点添加前缀
+
+  # Subscribe2:
+  #   <<: *BaseProvider
+  #   url: "http://your-service-provider-url-2"
+  #   override:
+  #     additional-prefix: "[机场2] "
+
+# ==================== 基础配置 ====================
+port: 7890                # HTTP 代理端口
+socks-port: 7891          # SOCKS5 代理端口
+mixed-port: 7892          # 混合端口（HTTP+SOCKS5）
+allow-lan: true           # 允许局域网连接
+bind-address: '*'         # 绑定地址
+mode: rule                # 运行模式：rule（规则） / global（全局） / direct（直连）
+log-level: info           # 日志级别：silent / error / warning / info / debug
+ipv6: true                # 启用 IPv6
+tcp-concurrent: true      # TCP 并发
+unified-delay: true       # 统一延迟
+find-process-mode: strict # 进程匹配模式
+keep-alive-interval: 30   # TCP Keep Alive 间隔
+
+# ==================== 外部控制 ====================
+external-controller: 127.0.0.1:9090  # RESTful API 监听地址
+secret: ""                            # API 访问密钥（留空则无需密钥）
+external-ui: ui                       # 外部 UI 目录
+external-ui-name: metacubexd          # UI 名称
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+
+# ==================== 配置文件 ====================
+profile:
+  store-selected: true   # 存储 select 选择值
+  store-fake-ip: true    # 存储 fake-ip 映射表
+
+# ==================== TUN 模式 ====================
+tun:
+  enable: true            # 启用 TUN 模式
+  stack: mixed            # tun 模式堆栈：system / gvisor / mixed
+  dns-hijack:             # DNS 劫持
+    - any:53
+    - tcp://any:53
+  auto-route: true        # 自动设置全局路由
+  auto-redirect: true     # 自动配置 iptables 以重定向 TCP 连接
+  auto-detect-interface: true  # 自动选择流量出口接口
+
+# ==================== DNS 配置 ====================
+dns:
+  enable: true
+  ipv6: true
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip        # DNS 增强模式：fake-ip / redir-host
+  fake-ip-range: 198.18.0.1/16  # Fake-IP 地址池
+
+  # 默认 DNS 服务器
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+
+  # 主 DNS 服务器
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+
+  # 代理节点域名解析服务器
+  proxy-server-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+
+  # Fake-IP 过滤列表
+  fake-ip-filter:
+    - '*.lan'
+    - '*.local'
+    - '*.localhost'
+    - '+.stun.*.*'
+    - '+.stun.*.*.*'
+    - '+.stun.*.*.*.*'
+    - '+.stun.*.*.*.*.*'
+    - '*.n.n.srv.nintendo.net'
+    - '+.stun.playstation.net'
+    - 'xbox.*.*.microsoft.com'
+    - '*.*.xboxlive.com'
+    - '*.msftncsi.com'
+    - '*.msftconnecttest.com'
+    - 'WORKGROUP'
+
+# ==================== 流量嗅探 ====================
+sniffer:
+  enable: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  skip-domain:
+    - 'Mijia Cloud'
+    - '+.push.apple.com'
+    - '+.apple.com'
+
+# ==================== GEO 数据库 ====================
+geodata-mode: true
+geox-url:
+  geoip: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
+  geosite: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
+  mmdb: "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb"
+  asn: "https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb"
+
+# ==================== 代理策略组 ====================
+proxy-groups:
+  # ========== 主要策略组 ==========
+  - name: 🚀 手动切换
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Rocket.png
+    proxies:
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+      - 🇹🇼 台湾节点
+      - 🇰🇷 韩国节点
+      - 🇬🇧 英国节点
+      - 🇪🇺 欧盟节点
+      - 🔄 自动选择
+      - ⚡ 故障转移
+      - 🔀 负载均衡
+      - DIRECT
+
+  - name: 🔄 自动选择
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Auto.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+
+  - name: ⚡ 故障转移
+    type: fallback
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Bypass.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    include-all: true
+
+  - name: 🔀 负载均衡
+    type: load-balance
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Available.png
+    strategy: consistent-hashing
+    url: https://www.google.com/generate_204
+    interval: 300
+    include-all: true
+
+  - name: 🌍 国外流量
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Global.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+      - 🇹🇼 台湾节点
+      - DIRECT
+
+  - name: 🐟 兜底分流
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Final.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - DIRECT
+
+  # ========== AI 服务 ==========
+  - name: 🤖 AI 服务
+    type: select
+    icon: https://raw.githubusercontent.com/Orz-3/mini/master/Color/OpenAI.png
+    proxies:
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+      - 🇬🇧 英国节点
+      - 🚀 手动切换
+      - 🔄 自动选择
+
+  # ========== 流媒体服务 ==========
+  - name: 📹 YouTube
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/YouTube.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+
+  - name: 🎥 Netflix
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Netflix.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+      - 🇹🇼 台湾节点
+
+  - name: 🎬 Disney+
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Disney+.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+
+  - name: 📺 国际媒体
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Streaming.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+      - 🇹🇼 台湾节点
+
+  - name: 📡 Emby
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Emby.png
+    proxies:
+      - DIRECT
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+
+  # ========== 社交平台 ==========
+  - name: 📲 Telegram
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Telegram.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+
+  - name: 🐦 Twitter
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Twitter.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+
+  # ========== 常用服务 ==========
+  - name: Ⓜ️ Microsoft
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Microsoft.png
+    proxies:
+      - DIRECT
+      - 🚀 手动切换
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+
+  - name: 🍎 Apple
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Apple.png
+    proxies:
+      - DIRECT
+      - 🚀 手动切换
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+
+  - name: 🔍 Google
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Google_Search.png
+    proxies:
+      - 🚀 手动切换
+      - 🔄 自动选择
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+
+  - name: 🎮 游戏平台
+    type: select
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Game.png
+    proxies:
+      - DIRECT
+      - 🚀 手动切换
+      - 🇭🇰 香港节点
+      - 🇺🇸 美国节点
+      - 🇸🇬 狮城节点
+      - 🇯🇵 日本节点
+
+  # ========== 地区节点组 ==========
+  - name: 🇭🇰 香港节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Hong_Kong.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterHK
+
+  - name: 🇺🇸 美国节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/United_States.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterUS
+
+  - name: 🇸🇬 狮城节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Singapore.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterSG
+
+  - name: 🇯🇵 日本节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Japan.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterJP
+
+  - name: 🇹🇼 台湾节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Taiwan.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterTW
+
+  - name: 🇰🇷 韩国节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Korea.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterKR
+
+  - name: 🇬🇧 英国节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/United_Kingdom.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterUK
+
+  - name: 🇪🇺 欧盟节点
+    type: url-test
+    icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/European_Union.png
+    url: https://www.google.com/generate_204
+    interval: 300
+    tolerance: 50
+    include-all: true
+    filter: *FilterEU
+
+# ==================== 规则提供者 ====================
+
+# ==================== 规则提供者 ====================
+rule-providers:
+  # 拒绝规则
+  Reject:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
+
+  Advertising:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Providers/BanAD.yaml"
+
+  # 国内常用服务（新增）
+  Douyin:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/DouYin/DouYin.yaml"
+
+  BiliBili:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/BiliBili/BiliBili.yaml"
+
+  WeChat:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/WeChat/WeChat.yaml"
+
+  ChinaMedia:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/ChinaMedia/ChinaMedia.yaml"
+
+  # 直连规则
+  Direct:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
+
+  Private:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt"
+
+  Download:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Download/Download.yaml"
+
+  # AI 服务
+  AI:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Repcz/Tool@X/Clash/Rules/AI.list"
+
+  # 流媒体
+  YouTube:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/YouTube/YouTube.yaml"
+
+  Netflix:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Netflix/Netflix.yaml"
+
+  Disney:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Disney/Disney.yaml"
+
+  Emby:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Repcz/Tool@X/Clash/Rules/Emby.list"
+
+  Streaming:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/GlobalMedia/GlobalMedia.yaml"
+
+  # 社交平台
+  Telegram:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Telegram/Telegram.yaml"
+
+  Twitter:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Twitter/Twitter.yaml"
+
+  # 常用服务
+  Microsoft:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Microsoft/Microsoft.yaml"
+
+  Apple:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Apple/Apple.yaml"
+
+  Google:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Google/Google.yaml"
+
+  GitHub:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/GitHub/GitHub.yaml"
+
+  Games:
+    <<: *RuleProviderClassical
+    format: yaml
+    url: "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Game/Game.yaml"
+
+  # 代理规则
+  Proxy:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt"
+
+  # 国内规则
+  China:
+    <<: *RuleProviderClassical
+    format: text
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
+
+# ==================== 分流规则 ====================
+rules:
+  # 1. 广告拦截（最高优先级）
+  - RULE-SET,Reject,REJECT
+  - RULE-SET,Advertising,REJECT
+
+  # 2. 局域网和私有地址直连
+  - RULE-SET,Private,DIRECT
+
+  # 3. 国内常用服务直连（重要：必须在代理规则之前）
+  - RULE-SET,Douyin,DIRECT
+  - RULE-SET,BiliBili,DIRECT
+  - RULE-SET,WeChat,DIRECT
+  - RULE-SET,ChinaMedia,DIRECT
+  - RULE-SET,Download,DIRECT
+
+  # 4. 国内直连域名
+  - RULE-SET,Direct,DIRECT
+
+  # 5. AI 服务
+  - RULE-SET,AI,🤖 AI 服务
+
+  # 6. 流媒体服务
+  - RULE-SET,YouTube,📹 YouTube
+  - RULE-SET,Netflix,🎥 Netflix
+  - RULE-SET,Disney,🎬 Disney+
+  - RULE-SET,Emby,📡 Emby
+  - RULE-SET,Streaming,📺 国际媒体
+
+  # 7. 社交平台
+  - RULE-SET,Telegram,📲 Telegram
+  - RULE-SET,Twitter,🐦 Twitter
+
+  # 8. 常用服务
+  - RULE-SET,GitHub,🌍 国外流量
+  - RULE-SET,Microsoft,Ⓜ️ Microsoft
+  - RULE-SET,Apple,🍎 Apple
+  - RULE-SET,Google,🔍 Google
+  - RULE-SET,Games,🎮 游戏平台
+
+  # 9. 国外代理
+  - RULE-SET,Proxy,🌍 国外流量
+
+  # 10. 国内 IP 段直连（重要：确保国内流量不走代理）
+  - RULE-SET,China,DIRECT
+  - GEOIP,CN,DIRECT
+
+  # 11. 兜底规则
+  - MATCH,🐟 兜底分流
